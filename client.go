@@ -5,18 +5,18 @@ import (
 	"crypto/x509"
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
+	"os"
 	"time"
 )
 
 func main() {
-
 	name := flag.String("c", "a", "client name")
 	flag.Parse()
 
-	cert, err := ioutil.ReadFile("./certs/ca.crt")
+	cert, err := os.ReadFile("./certs/ca.crt")
 	if err != nil {
 		log.Fatalf("could not open certificate file: %v", err)
 	}
@@ -35,8 +35,10 @@ func main() {
 		Timeout: time.Minute * 3,
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{
-				RootCAs:      caCertPool,
-				Certificates: []tls.Certificate{certificate},
+				MinVersion:         tls.VersionTLS13,
+				RootCAs:            caCertPool,
+				Certificates:       []tls.Certificate{certificate},
+				InsecureSkipVerify: false,
 			},
 		},
 	}
@@ -44,7 +46,7 @@ func main() {
 	// Request /hello over port 8443 via the GET method
 	// Using curl the verfiy it :
 	// curl --trace trace.log -k \
-	//   --cacert ./ca.crt  --cert ./client.b.crt --key ./client.b.key  \
+	//   --cacert ./certs/ca.crt  --cert ./certs/client.b.crt --key ./certs/client.b.key  \
 	//     https://localhost:8443/hello
 
 	r, err := client.Get("https://localhost:8443/hello")
@@ -54,7 +56,7 @@ func main() {
 
 	// Read the response body
 	defer r.Body.Close()
-	body, err := ioutil.ReadAll(r.Body)
+	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		log.Fatalf("error reading response: %v", err)
 	}
